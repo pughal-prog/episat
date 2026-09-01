@@ -1,0 +1,82 @@
+[
+  {
+    "district":"Guwahati",
+    "week_start":"2023-11-27T00:00:00.000",
+    "predicted_cases":4.0634361819,
+    "risk_level":"Low",
+    "alert_text":"LOW RISK: Guwahati currently shows low dengue risk.",
+    "ndwi_roll4":-0.1945,
+    "rainfall_roll4":1.32,
+    "humidity_roll4":44.15
+  },
+  {
+    "district":"Kolkata",
+    "week_start":"2023-11-27T00:00:00.000",
+    "predicted_cases":4.2550353601,
+    "risk_level":"Low",
+    "alert_text":"LOW RISK: Kolkata currently shows low dengue risk.",
+    "ndwi_roll4":-0.16075,
+    "rainfall_roll4":5.1175,
+    "humidity_roll4":44.15
+  },
+  {
+    "district":"Kochi",
+    "week_start":"2023-11-27T00:00:00.000",
+    "predicted_cases":4.4476361897,
+    "risk_level":"Low",
+    "alert_text":"LOW RISK: Kochi currently shows low dengue risk.",
+    "ndwi_roll4":-0.169,
+    "rainfall_roll4":2.87,
+    "humidity_roll4":44.15
+  },
+  {
+    "district":"Delhi",
+    "week_start":"2023-11-27T00:00:00.000",
+    "predicted_cases":4.2528963329,
+    "risk_level":"Low",
+    "alert_text":"LOW RISK: Delhi currently shows low dengue risk.",
+    "ndwi_roll4":-0.17425,
+    "rainfall_roll4":2.4125,
+    "humidity_roll4":44.15
+  },
+  {
+    "district":"Chennai",
+    "week_start":"2023-11-27T00:00:00.000",
+    "predicted_cases":4.6504621444,
+    "risk_level":"Low",
+    "alert_text":"LOW RISK: Chennai currently shows low dengue risk.",
+    "ndwi_roll4":-0.16675,
+    "rainfall_roll4":2.7275,
+    "humidity_roll4":44.15
+  },
+  {
+    "district":"Bhubaneswar",
+    "week_start":"2023-11-27T00:00:00.000",
+    "predicted_cases":4.3587154445,
+    "risk_level":"Low",
+    "alert_text":"LOW RISK: Bhubaneswar currently shows low dengue risk.",
+    "ndwi_roll4":-0.1925,
+    "rainfall_roll4":1.99,
+    "humidity_roll4":44.15
+  },
+  {
+    "district":"Lucknow",
+    "week_start":"2023-11-27T00:00:00.000",
+    "predicted_cases":4.4180881309,
+    "risk_level":"Low",
+    "alert_text":"LOW RISK: Lucknow currently shows low dengue risk.",
+    "ndwi_roll4":-0.1975,
+    "rainfall_roll4":1.1,
+    "humidity_roll4":44.15
+  },
+  {
+    "district":"Pune",
+    "week_start":"2023-11-27T00:00:00.000",
+    "predicted_cases":4.3663726391,
+    "risk_level":"Low",
+    "alert_text":"LOW RISK: Pune currently shows low dengue risk.",
+    "ndwi_roll4":-0.16475,
+    "rainfall_roll4":1.545,
+    "humidity_roll4":44.15
+  }
+]

@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EpiSat — Disease Outbreak Early-Warning Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#12241f;
+    --paper:#f4f2ec;
+    --paper-raised:#faf9f5;
+    --line:#c9c3b3;
+    --line-soft:#ddd8c9;
+    --teal:#1c4b46;
+    --teal-deep:#0d2e2a;
+    --low:#5b7a5a;
+    --medium:#b8862e;
+    --high:#a8492f;
+    --critical:#7c1f2b;
+    --accent:#c96a3e;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .masthead{
+    border-bottom:2px solid var(--ink);
+    padding:22px 32px 16px;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .masthead-left h1{
+    font-family:'Source Serif 4',serif;
+    font-weight:700;
+    font-size:34px;
+    letter-spacing:-0.01em;
+    margin:0 0 4px 0;
+  }
+  .masthead-left p{
+    margin:0;
+    font-size:13.5px;
+    color:#4b5a54;
+    max-width:520px;
+    line-height:1.5;
+  }
+  .masthead-right{
+    text-align:right;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    color:#5c6a63;
+    line-height:1.6;
+  }
+  .masthead-right .ps-code{ color:var(--ink); font-weight:500;}
+
+  .layout{
+    display:grid;
+    grid-template-columns: 300px 1fr;
+    min-height:calc(100vh - 96px);
+  }
+  @media (max-width: 860px){
+    .layout{grid-template-columns:1fr;}
+  }
+
+  .sidebar{
+    border-right:1px solid var(--line);
+    padding:20px 0;
+  }
+  .sidebar-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:#6b7a73;
+    padding:0 20px 10px;
+  }
+  .district-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:12px 20px;
+    border-bottom:1px solid var(--line-soft);
+    cursor:pointer;
+    transition:background 0.15s ease;
+  }
+  .district-row:hover{ background:var(--paper-raised); }
+  .district-row.active{ background:#e9e5d8; border-left:3px solid var(--teal); padding-left:17px; }
+  .district-name{ font-size:14.5px; font-weight:500; }
+  .district-meta{ font-size:11px; color:#6b7a73; font-family:'IBM Plex Mono',monospace; margin-top:2px;}
+  .risk-chip{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    font-weight:500;
+    padding:3px 8px;
+    border-radius:2px;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    white-space:nowrap;
+  }
+  .risk-Low{ background:#e4ebe1; color:var(--low); }
+  .risk-Medium{ background:#f3e6cd; color:var(--medium); }
+  .risk-High{ background:#f2dcd2; color:var(--high); }
+  .risk-Critical{ background:#efd4d6; color:var(--critical); }
+
+  .main{ padding:28px 36px 40px; }
+
+  .top-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:6px;
+    flex-wrap:wrap;
+    gap:14px;
+  }
+  .selected-title{
+    font-family:'Source Serif 4',serif;
+    font-size:26px;
+    font-weight:600;
+  }
+  .mode-toggle{
+    display:flex;
+    border:1px solid var(--ink);
+    border-radius:2px;
+    overflow:hidden;
+  }
+  .mode-toggle button{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    background:var(--paper);
+    border:none;
+    padding:8px 14px;
+    cursor:pointer;
+    color:var(--ink);
+  }
+  .mode-toggle button.active{ background:var(--ink); color:var(--paper); }
+  .mode-toggle button:not(:last-child){ border-right:1px solid var(--ink); }
+
+  .alert-box{
+    border-left:3px solid var(--teal);
+    background:var(--paper-raised);
+    padding:14px 18px;
+    margin:16px 0 24px;
+    font-size:14px;
+    line-height:1.55;
+  }
+  .alert-box.risk-Medium{ border-left-color:var(--medium); }
+  .alert-box.risk-High{ border-left-color:var(--high); }
+  .alert-box.risk-Critical{ border-left-color:var(--critical); }
+
+  .stat-strip{
+    display:flex;
+    gap:0;
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    margin-bottom:22px;
+  }
+  .stat{
+    flex:1;
+    padding:14px 18px;
+    border-right:1px solid var(--line-soft);
+  }
+  .stat:last-child{ border-right:none; }
+  .stat-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color:#6b7a73;
+    margin-bottom:6px;
+  }
+  .stat-value{
+    font-family:'Source Serif 4',serif;
+    font-size:24px;
+    font-weight:600;
+  }
+
+  .chart-panel{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    padding:20px 22px 10px;
+  }
+  .chart-panel h3{
+    font-family:'Source Serif 4',serif;
+    font-size:16px;
+    font-weight:600;
+    margin:0 0 4px;
+  }
+  .chart-panel .caption{
+    font-size:12px;
+    color:#6b7a73;
+    margin:0 0 14px;
+  }
+  canvas{ max-height:320px; }
+
+  .footer-note{
+    margin-top:26px;
+    font-size:11.5px;
+    color:#6b7a73;
+    line-height:1.6;
+    border-top:1px solid var(--line-soft);
+    padding-top:14px;
+  }
+  .footer-note code{
+    font-family:'IBM Plex Mono',monospace;
+    background:#e9e5d8;
+    padding:1px 5px;
+    border-radius:2px;
+  }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="masthead-left">
+    <h1>EpiSat</h1>
+    <p>Satellite-driven early warning for dengue outbreaks — forecasting district-level risk 4 weeks ahead of case surges, using land surface temperature, rainfall, and standing-water signals.</p>
+  </div>
+  <div class="masthead-right">
+    <div><span class="ps-code">SIH26209</span> · Space Technology · Software</div>
+    <div id="last-updated">Snapshot week: —</div>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-label">Districts monitored</div>
+    <div id="district-list"></div>
+  </div>
+
+  <div class="main">
+    <div class="top-row">
+      <div class="selected-title" id="selected-title">—</div>
+      <div class="mode-toggle">
+        <button id="btn-live" class="active">Current forecast</button>
+        <button id="btn-backtest">Backtest replay</button>
+      </div>
+    </div>
+
+    <div id="alert-box" class="alert-box">Loading district data…</div>
+
+    <div class="stat-strip" id="stat-strip"></div>
+
+    <div class="chart-panel">
+      <h3 id="chart-title">4-week forecast</h3>
+      <p class="caption" id="chart-caption">Predicted weekly dengue cases vs. actual reported cases.</p>
+      <canvas id="mainChart"></canvas>
+    </div>
+
+    <div class="footer-note">
+      Data shown is from a synthetic dataset generated to match the structure of real sources (NASA MODIS land surface temperature, CHIRPS rainfall, Sentinel-2 NDWI, NVBDCP/IDSP case counts) — built this way because live API/internet access wasn't available in the build environment. Swap in <code>load_real_data_TEMPLATE.py</code> for live data once your Google Earth Engine and data.gov.in credentials are set up. Backend model: Random Forest baseline (drop-in replaceable with XGBoost).
+    </div>
+  </div>
+</div>
+
+<script src="data_embed.js"></script>
+<script>
+const currentData = EMBEDDED_CURRENT;
+const historicalData = EMBEDDED_HISTORICAL;
+
+let selectedDistrict = currentData[0].district;
+let mode = "live"; // "live" or "backtest"
+let chart = null;
+
+const riskOrder = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+
+function renderDistrictList(){
+  const container = document.getElementById("district-list");
+  container.innerHTML = "";
+  const sorted = [...currentData].sort((a,b)=> riskOrder[a.risk_level]-riskOrder[b.risk_level]);
+  sorted.forEach(d=>{
+    const row = document.createElement("div");
+    row.className = "district-row" + (d.district === selectedDistrict ? " active" : "");
+    row.onclick = () => { selectedDistrict = d.district; render(); };
+    row.innerHTML = `
+      <div>
+        <div class="district-name">${d.district}</div>
+        <div class="district-meta">${d.predicted_cases.toFixed(1)} cases/wk (forecast)</div>
+      </div>
+      <div class="risk-chip risk-${d.risk_level}">${d.risk_level}</div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function renderAlert(){
+  const d = currentData.find(x=>x.district===selectedDistrict);
+  const box = document.getElementById("alert-box");
+  box.className = "alert-box risk-" + d.risk_level;
+  box.textContent = d.alert_text;
+  document.getElementById("selected-title").textContent = selectedDistrict;
+  document.getElementById("last-updated").textContent = "Snapshot week: " + d.week_start.split("T")[0];
+}
+
+function renderStats(){
+  const d = currentData.find(x=>x.district===selectedDistrict);
+  const strip = document.getElementById("stat-strip");
+  strip.innerHTML = `
+    <div class="stat">
+      <div class="stat-label">Forecast (4wk ahead)</div>
+      <div class="stat-value">${d.predicted_cases.toFixed(1)}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Risk level</div>
+      <div class="stat-value">${d.risk_level}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Standing water (NDWI, 4wk avg)</div>
+      <div class="stat-value">${d.ndwi_roll4.toFixed(2)}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Rainfall (4wk avg, mm)</div>
+      <div class="stat-value">${d.rainfall_roll4.toFixed(1)}</div>
+    </div>
+  `;
+}
+
+function renderChart(){
+  const records = historicalData
+    .filter(r=>r.district===selectedDistrict)
+    .sort((a,b)=> new Date(a.week_start) - new Date(b.week_start));
+
+  const labels = records.map(r=> r.week_start.split("T")[0]);
+  const actual = records.map(r=> r.target_cases_4wk_ahead);
+  const predicted = records.map(r=> r.predicted_cases);
+
+  const titleEl = document.getElementById("chart-title");
+  const captionEl = document.getElementById("chart-caption");
+  if (mode === "backtest"){
+    titleEl.textContent = "Backtest: predicted vs. actual outbreak history";
+    captionEl.textContent = "Replays the model's forecast against real historical case counts — the core validation for accuracy.";
+  } else {
+    titleEl.textContent = "4-week forecast";
+    captionEl.textContent = "Predicted weekly dengue cases vs. actual reported cases across the test period.";
+  }
+
+  const ctx = document.getElementById("mainChart").getContext("2d");
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Actual cases",
+          data: actual,
+          borderColor: "#12241f",
+          backgroundColor: "transparent",
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.15,
+        },
+        {
+          label: "EpiSat predicted",
+          data: predicted,
+          borderColor: "#c96a3e",
+          backgroundColor: "transparent",
+          borderWidth: 2,
+          borderDash: [5,3],
+          pointRadius: 0,
+          tension: 0.15,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { position: "top", align: "end", labels: { boxWidth: 14, font: { family: "Inter", size: 12 } } },
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 8, font: { family: "IBM Plex Mono", size: 10 } }, grid: { display:false } },
+        y: { title: { display:true, text:"Weekly cases", font:{family:"Inter", size:11} }, grid:{ color:"#e3ded0" } }
+      }
+    }
+  });
+  document.getElementById("mainChart").parentElement.style.height = "340px";
+}
+
+function render(){
+  renderDistrictList();
+  renderAlert();
+  renderStats();
+  renderChart();
+}
+
+document.getElementById("btn-live").onclick = () => {
+  mode = "live";
+  document.getElementById("btn-live").classList.add("active");
+  document.getElementById("btn-backtest").classList.remove("active");
+  render();
+};
+document.getElementById("btn-backtest").onclick = () => {
+  mode = "backtest";
+  document.getElementById("btn-backtest").classList.add("active");
+  document.getElementById("btn-live").classList.remove("active");
+  render();
+};
+
+render();
+</script>
+</body>
+</html>

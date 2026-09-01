@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: episat-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: episat_db
+      POSTGRES_USER: episat
+      POSTGRES_PASSWORD: episat_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U episat -d episat_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: episat-redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: episat-backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - DEMO_MODE=True
+      - DATA_MODE=demo
+      - DATABASE_URL=postgresql+asyncpg://episat:episat_password@postgres:5432/episat_db
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/ml_models:/app/ml_models
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: episat-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5000/api/v1
+    depends_on:
+      - backend
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: episat-worker
+    restart: always
+    command: python -m app.db.migrate_flat_files_to_db
+    environment:
+      - DEMO_MODE=True
+      - DATABASE_URL=postgresql+asyncpg://episat:episat_password@postgres:5432/episat_db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: episat-network
