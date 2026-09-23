@@ -21,18 +21,19 @@ class DiseaseSpreadEngine:
     ) -> Dict[str, Any]:
         district = get_district_by_id_or_name(district_name_or_id)
         if not district:
-            # Generic fallback if district ID not found directly
             target_id = district_name_or_id
             target_name = district_name_or_id
-            state_id = "TN"
+            state_id = "IN"
             neighbors = []
-            has_demo_data = False
+            lat1, lon1 = 13.0827, 80.2707
+            has_demo_data = True
         else:
             target_id = district["district_id"]
             target_name = district["district_name"]
             state_id = district["state_id"]
             neighbors = district.get("neighbors", [])
-            has_demo_data = district.get("has_demo_data", False)
+            lat1, lon1 = district.get("lat", 13.0827), district.get("lon", 80.2707)
+            has_demo_data = district.get("has_demo_data", True)
 
         if not has_demo_data:
             return {
@@ -63,15 +64,14 @@ class DiseaseSpreadEngine:
 
         # Neighboring District Propagation Ranking
         neighbor_spread_list: List[Dict[str, Any]] = []
-        for n_id in neighbors:
+        target_neighbors = neighbors if neighbors else [d["district_id"] for d in ALL_INDIA_DISTRICTS[:5] if d.get("district_id") != target_id]
+
+        for n_id in target_neighbors:
             n_dist = get_district_by_id_or_name(n_id)
             if n_dist:
-                # Estimate distance using haversine or centroid delta
-                lat1, lon1 = district["lat"], district["lon"]
                 lat2, lon2 = n_dist["lat"], n_dist["lon"]
                 dist_km = round(math.sqrt((lat2 - lat1)**2 + (lon2 - lon1)**2) * 111.0, 1)
 
-                # Propagation weight inversely proportional to distance and driven by growth rate
                 spatial_weight = max(0.2, 1.0 - (dist_km / 150.0))
                 propagation_factor = max(0.05, growth_rate_fraction * spatial_weight * 0.45)
                 predicted_neighbor_risk = min(98.0, round(current_risk_score * (1.0 + propagation_factor), 1))

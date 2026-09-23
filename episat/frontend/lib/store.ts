@@ -8,6 +8,7 @@ interface EpiSatState {
   activeLayer: string; // "risk", "bsi", "anomaly", "forecast", "citizen"
   floodMode: boolean;
   selectedCell: any | null;
+  customCoords: [number, number] | null;
   isAssistantOpen: boolean;
   isSimulatorOpen: boolean;
   isCitizenModalOpen: boolean;
@@ -19,6 +20,7 @@ interface EpiSatState {
   setActiveLayer: (layer: string) => void;
   setFloodMode: (flood: boolean) => void;
   setSelectedCell: (cell: any) => void;
+  setCustomCoords: (coords: [number, number] | null) => void;
   toggleAssistant: () => void;
   toggleSimulator: () => void;
   toggleCitizenModal: () => void;
@@ -32,6 +34,7 @@ export const useEpiSatStore = create<EpiSatState>((set) => ({
   activeLayer: "risk",
   floodMode: false,
   selectedCell: null,
+  customCoords: null,
   isAssistantOpen: false,
   isSimulatorOpen: false,
   isCitizenModalOpen: false,
@@ -43,6 +46,7 @@ export const useEpiSatStore = create<EpiSatState>((set) => ({
   setActiveLayer: (activeLayer) => set({ activeLayer }),
   setFloodMode: (floodMode) => set({ floodMode }),
   setSelectedCell: (selectedCell) => set({ selectedCell }),
+  setCustomCoords: (customCoords) => set({ customCoords }),
   toggleAssistant: () => set((state) => ({ isAssistantOpen: !state.isAssistantOpen })),
   toggleSimulator: () => set((state) => ({ isSimulatorOpen: !state.isSimulatorOpen })),
   toggleCitizenModal: () => set((state) => ({ isCitizenModalOpen: !state.isCitizenModalOpen })),

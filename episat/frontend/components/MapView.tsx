@@ -27,6 +27,11 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
   
   const { selectedLocation, activeLayer, setSelectedCell } = useEpiSatStore();
 
+  const [showRelocatePanel, setShowRelocatePanel] = useState<boolean>(false);
+  const [inputLat, setInputLat] = useState<string>("13.0827");
+  const [inputLon, setInputLon] = useState<string>("80.2707");
+  const targetMarkerRef = useRef<any>(null);
+
   // Load All-India District Coordinates Database
   useEffect(() => {
     async function fetchLocationsDb() {
@@ -43,6 +48,69 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
     }
     fetchLocationsDb();
   }, []);
+
+  // Sync Draggable Target Pin Marker with active area center
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const center = getDynamicCenter();
+    setInputLat(center[1].toFixed(4));
+    setInputLon(center[0].toFixed(4));
+
+    import("maplibre-gl").then((maplibregl) => {
+      if (targetMarkerRef.current) {
+        targetMarkerRef.current.setLngLat(center);
+        return;
+      }
+
+      const el = document.createElement("div");
+      el.className = "w-9 h-9 rounded-full bg-teal-400 border-2 border-slate-950 flex items-center justify-center text-base shadow-2xl animate-bounce cursor-move";
+      el.title = "Drag target pin anywhere to relocate disease spread calculations!";
+      el.innerText = "🎯";
+
+      const marker = new maplibregl.Marker({ element: el, draggable: true })
+        .setLngLat(center)
+        .addTo(mapRef.current);
+
+      marker.on("dragend", () => {
+        const lngLat = marker.getLngLat();
+        setInputLat(lngLat.lat.toFixed(4));
+        setInputLon(lngLat.lng.toFixed(4));
+        if (onRecenterGrid) {
+          onRecenterGrid(lngLat.lat, lngLat.lng);
+          setIsMoved(false);
+        }
+      });
+
+      targetMarkerRef.current = marker;
+    });
+  }, [gridData, selectedLocation]);
+
+  const handleManualRelocateSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const lat = parseFloat(inputLat);
+    const lon = parseFloat(inputLon);
+    if (!isNaN(lat) && !isNaN(lon) && onRecenterGrid) {
+      if (mapRef.current) {
+        mapRef.current.flyTo({ center: [lon, lat], zoom: 13, essential: true });
+      }
+      onRecenterGrid(lat, lon);
+      setIsMoved(false);
+      setShowRelocatePanel(false);
+    }
+  };
+
+  const handlePresetRelocate = (lat: number, lon: number) => {
+    setInputLat(lat.toFixed(4));
+    setInputLon(lon.toFixed(4));
+    if (mapRef.current) {
+      mapRef.current.flyTo({ center: [lon, lat], zoom: 13, essential: true });
+    }
+    if (onRecenterGrid) {
+      onRecenterGrid(lat, lon);
+      setIsMoved(false);
+      setShowRelocatePanel(false);
+    }
+  };
 
   // Helper to determine risk level badge and color scheme
   function getRiskLevelDetails(score: number) {
@@ -487,8 +555,20 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
           </button>
         )}
 
-        {/* Map Tile Style Switcher (Satellite vs Streets GIS) */}
+        {/* Map Tile Style Switcher & Relocate Control Toggle */}
         <div className="bg-slate-900/90 backdrop-blur border border-slate-700 p-1 rounded-full flex items-center space-x-1 shadow-lg font-mono text-[11px]">
+          <button
+            onClick={() => setShowRelocatePanel(!showRelocatePanel)}
+            className={`px-3 py-1 rounded-full flex items-center space-x-1 font-bold transition-all ${
+              showRelocatePanel
+                ? "bg-rose-500 text-white shadow-md animate-pulse"
+                : "bg-teal-500/20 text-teal-300 hover:bg-teal-500 hover:text-slate-950"
+            }`}
+            title="Relocate Target Area of Choice"
+          >
+            <Crosshair className="w-3.5 h-3.5" />
+            <span>🎯 Relocate Area</span>
+          </button>
           <button
             onClick={() => setMapStyleMode("satellite")}
             className={`px-3 py-1 rounded-full flex items-center space-x-1 transition-all ${
@@ -514,6 +594,86 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
         </div>
 
       </div>
+
+      {/* Floating Relocate Target Area Control Panel */}
+      {showRelocatePanel && (
+        <div className="absolute top-16 left-3 z-30 w-80 bg-slate-900/95 backdrop-blur border-2 border-teal-500/70 text-white p-4 rounded-xl shadow-2xl space-y-3 font-mono">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div className="flex items-center space-x-2">
+              <Crosshair className="w-4 h-4 text-teal-400 animate-spin" />
+              <span className="font-bold text-sm text-teal-300">RELOCATE TARGET AREA</span>
+            </div>
+            <button
+              onClick={() => setShowRelocatePanel(false)}
+              className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <p className="text-[11px] text-slate-300 leading-snug">
+            📍 <strong>5 Ways to Relocate:</strong> Drag 🎯 pin on map, click anywhere on map, enter custom Lat/Lon, click presets below, or search in top bar!
+          </p>
+
+          <form onSubmit={handleManualRelocateSubmit} className="space-y-2 text-xs">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-slate-400 font-semibold block mb-1">LATITUDE</label>
+                <input
+                  type="text"
+                  value={inputLat}
+                  onChange={(e) => setInputLat(e.target.value)}
+                  placeholder="e.g. 13.0827"
+                  className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-teal-300 font-mono focus:border-teal-400 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 font-semibold block mb-1">LONGITUDE</label>
+                <input
+                  type="text"
+                  value={inputLon}
+                  onChange={(e) => setInputLon(e.target.value)}
+                  placeholder="e.g. 80.2707"
+                  className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-teal-300 font-mono focus:border-teal-400 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold py-1.5 rounded transition-colors text-xs flex items-center justify-center space-x-1.5 shadow-md"
+            >
+              <Crosshair className="w-3.5 h-3.5" />
+              <span>RELOCATE DISEASE GRID HERE</span>
+            </button>
+          </form>
+
+          {/* Preset Risk Hubs */}
+          <div className="pt-2 border-t border-slate-800">
+            <div className="text-[10px] text-slate-400 font-semibold mb-1.5">QUICK PRESET RISK HUBS:</div>
+            <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+              {[
+                { name: "Chennai South", lat: 13.0067, lon: 80.2571 },
+                { name: "Delhi North", lat: 28.6912, lon: 77.1511 },
+                { name: "Mumbai Suburban", lat: 19.1176, lon: 72.8481 },
+                { name: "Bengaluru East", lat: 12.9784, lon: 77.6408 },
+                { name: "Kochi Coastal", lat: 9.9312, lon: 76.2673 },
+                { name: "Kolkata Central", lat: 22.5726, lon: 88.3639 },
+                { name: "Hyderabad Central", lat: 17.3850, lon: 78.4867 },
+                { name: "Pune Urban", lat: 18.5204, lon: 73.8567 },
+              ].map((p) => (
+                <button
+                  key={p.name}
+                  onClick={() => handlePresetRelocate(p.lat, p.lon)}
+                  className="bg-slate-800 hover:bg-teal-500/20 hover:text-teal-300 text-slate-300 px-2 py-1 rounded border border-slate-700/60 text-left transition-colors font-mono truncate"
+                >
+                  📍 {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Selected Ward Risk Inspector Modal Overlay */}
       {/* Selected Ward / Grid Area Disease Spread Inspector Modal Overlay */}

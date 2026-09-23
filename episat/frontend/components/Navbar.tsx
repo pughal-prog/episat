@@ -14,6 +14,7 @@ export default function Navbar() {
   const { 
     selectedState, setSelectedState,
     selectedLocation, setSelectedLocation, 
+    setCustomCoords,
     floodMode, setFloodMode,
     toggleAssistant, toggleSimulator, toggleCitizenModal 
   } = useEpiSatStore();
@@ -83,18 +84,47 @@ export default function Navbar() {
     loadDistricts();
   }, [selectedState]);
 
-  // Handle Search Input Changes & Auto-Complete Filtering
+  // Handle Search Input Changes & Auto-Complete Filtering + Nominatim Geocoding
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const q = e.target.value;
     setSearchQuery(q);
     if (q.trim().length > 0) {
       const queryLower = q.toLowerCase();
-      const matches = allLocations.filter(loc => 
+      const localMatches = allLocations.filter(loc => 
         loc.name.toLowerCase().includes(queryLower) || 
         (loc.state && loc.state.toLowerCase().includes(queryLower))
-      ).slice(0, 8);
-      setFilteredResults(matches);
+      ).slice(0, 5);
+
+      setFilteredResults(localMatches);
       setShowSearchResults(true);
+
+      // Async fetch OpenStreetMap Nominatim geocoding results for any custom location in India
+      if (q.trim().length >= 3) {
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=in&limit=4&q=${encodeURIComponent(q)}`)
+          .then(res => res.json())
+          .then(geoData => {
+            if (geoData && Array.isArray(geoData) && geoData.length > 0) {
+              const geoMatches = geoData.map(g => ({
+                id: `geo_${g.place_id}`,
+                name: g.display_name.split(",")[0],
+                full_address: g.display_name,
+                state: "IN",
+                lat: parseFloat(g.lat),
+                lon: parseFloat(g.lon)
+              }));
+              setFilteredResults(prev => {
+                const combined = [...prev];
+                geoMatches.forEach(gm => {
+                  if (!combined.some(c => c.name.toLowerCase() === gm.name.toLowerCase())) {
+                    combined.push(gm);
+                  }
+                });
+                return combined.slice(0, 8);
+              });
+            }
+          })
+          .catch(() => {});
+      }
     } else {
       setShowSearchResults(false);
     }
@@ -102,8 +132,13 @@ export default function Navbar() {
 
   // Select Location from Auto-Complete Dropdown
   const handleSelectSearchResult = (locationObj: any) => {
-    if (locationObj.state) {
+    if (locationObj.state && locationObj.state !== "IN") {
       setSelectedState(locationObj.state);
+    }
+    if (locationObj.lat !== undefined && locationObj.lon !== undefined) {
+      setCustomCoords([locationObj.lat, locationObj.lon]);
+    } else {
+      setCustomCoords(null);
     }
     setSelectedLocation(locationObj.name);
     setSearchQuery("");

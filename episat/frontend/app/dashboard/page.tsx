@@ -14,10 +14,9 @@ export default function DashboardPage() {
   const { 
     selectedLocation, horizonDays, setHorizonDays, 
     activeLayer, setActiveLayer, 
-    floodMode 
+    floodMode, customCoords, setCustomCoords 
   } = useEpiSatStore();
 
-  const [customCoords, setCustomCoords] = useState<[number, number] | null>(null);
   const [gridData, setGridData] = useState<any[]>([]);
   const [wardsData, setWardsData] = useState<any[]>([]);
   const [hotspotsData, setHotspotsData] = useState<any[]>([]);
