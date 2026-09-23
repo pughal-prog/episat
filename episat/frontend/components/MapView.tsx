@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useEpiSatStore } from "@/lib/store";
-import { Activity, Radio, Satellite, ShieldAlert, Sparkles, RefreshCw, Eye } from "lucide-react";
+import { Activity, Radio, Satellite, ShieldAlert, Sparkles, RefreshCw, Eye, MapPin, X, ChevronRight, AlertTriangle, Users } from "lucide-react";
 
 interface MapViewProps {
   gridData: any[];
@@ -20,9 +20,17 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
   const [currentZoom, setCurrentZoom] = useState<number>(12.5);
   const [mapStyleMode, setMapStyleMode] = useState<"satellite" | "streets">("satellite");
   const [liveStreamTime, setLiveStreamTime] = useState<string>("");
-  const [isProcessingLive, setIsProcessingLive] = useState<boolean>(true);
+  const [selectedWard, setSelectedWard] = useState<any | null>(null);
   
   const { selectedLocation, activeLayer, setSelectedCell } = useEpiSatStore();
+
+  // Helper to determine risk level badge and color scheme
+  function getRiskLevelDetails(score: number) {
+    if (score >= 75) return { level: "CRITICAL", text: "text-rose-400", bg: "bg-rose-500/20 border-rose-500/50 text-rose-300", badge: "bg-rose-600" };
+    if (score >= 55) return { level: "HIGH", text: "text-amber-400", bg: "bg-amber-500/20 border-amber-500/50 text-amber-300", badge: "bg-amber-600" };
+    if (score >= 30) return { level: "MODERATE", text: "text-sky-400", bg: "bg-sky-500/20 border-sky-500/50 text-sky-300", badge: "bg-sky-600" };
+    return { level: "LOW", text: "text-emerald-400", bg: "bg-emerald-500/20 border-emerald-500/50 text-emerald-300", badge: "bg-emerald-600" };
+  }
 
   // Real-time clock update for live telemetry feed timestamp
   useEffect(() => {
@@ -112,7 +120,7 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
       });
 
       map.on("load", () => {
-        setupWardsAndGridLayers(map, gridData, wardsData, activeLayer, setSelectedCell);
+        setupWardsAndGridLayers(map, gridData, wardsData, activeLayer, setSelectedCell, setSelectedWard, maplibregl);
         updateHotspotMarkers(map, maplibregl, hotspotsData);
         updateCitizenReportMarkers(map, maplibregl, citizenReportsData);
       });
@@ -132,7 +140,15 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
     }
   }
 
-  function setupWardsAndGridLayers(map: any, gData: any[], wData: any[], layerType: string, setCell: (c: any) => void) {
+  function setupWardsAndGridLayers(
+    map: any, 
+    gData: any[], 
+    wData: any[], 
+    layerType: string, 
+    setCell: (c: any) => void,
+    setWard: (w: any) => void,
+    maplibregl: any
+  ) {
     const wardFeatures = wData.map((ward) => ({
       type: "Feature",
       properties: ward,
@@ -154,6 +170,7 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
         data: { type: "FeatureCollection", features: wardFeatures },
       });
 
+      // Ward Polygon Fill - Color-coded by Ward Risk Score
       map.addLayer({
         id: "ward-fill",
         type: "fill",
@@ -167,19 +184,53 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
             "#f43f5e", 75,
             "#991b1b"
           ],
-          "fill-opacity": 0.25,
+          "fill-opacity": 0.45,
         },
       });
 
+      // High-contrast Ward Boundaries
       map.addLayer({
         id: "ward-line",
         type: "line",
         source: "ward-source",
         paint: {
           "line-color": "#38bdf8",
-          "line-width": 2.0,
-          "line-dasharray": [2, 1],
+          "line-width": 3.0,
+          "line-dasharray": [3, 1.5],
         },
+      });
+
+      // Interactive Ward Click Listener
+      map.on("click", "ward-fill", (e: any) => {
+        if (e.features && e.features[0]) {
+          const wardProps = e.features[0].properties;
+          setWard(wardProps);
+
+          const rScore = wardProps.risk_score || 50;
+          const levelDetails = getRiskLevelDetails(rScore);
+
+          new maplibregl.Popup({ offset: 15 })
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div class="font-sans text-xs p-1 space-y-1">
+                <div class="font-bold text-slate-900 border-b border-slate-200 pb-1 flex items-center justify-between gap-2">
+                  <span>🏛️ ${wardProps.ward_name}</span>
+                  <span class="px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${levelDetails.badge}">${levelDetails.level}</span>
+                </div>
+                <div class="text-slate-800 font-semibold mt-1">EpiSat Ward Risk Score: <strong class="${levelDetails.text}">${rScore} / 100</strong></div>
+                <div class="text-slate-600">Population at Risk: <strong>${(wardProps.population || 15000).toLocaleString()}</strong></div>
+                <div class="text-[10px] text-slate-500 mt-1 italic">Click map inspector panel for detailed ward breakdown.</div>
+              </div>
+            `)
+            .addTo(map);
+        }
+      });
+
+      map.on("mouseenter", "ward-fill", () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "ward-fill", () => {
+        map.getCanvas().style.cursor = "";
       });
     }
 
@@ -217,7 +268,7 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
             "#f43f5e", 75,
             "#991b1b"
           ],
-          "fill-opacity": 0.55,
+          "fill-opacity": 0.50,
         },
       });
 
@@ -228,13 +279,20 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
         paint: {
           "line-color": "#0284c7",
           "line-width": 1.2,
-          "line-opacity": 0.7,
+          "line-opacity": 0.6,
         },
       });
 
       map.on("click", "grid-fill", (e: any) => {
         if (e.features && e.features[0]) {
-          setCell(e.features[0].properties);
+          const props = e.features[0].properties;
+          setCell(props);
+
+          // Find corresponding ward and set selectedWard
+          const matchingWard = wData.find(w => w.ward_name === props.ward_name);
+          if (matchingWard) {
+            setWard(matchingWard);
+          }
         }
       });
     }
@@ -384,8 +442,60 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
 
       </div>
 
+      {/* Selected Ward Risk Inspector Modal Overlay */}
+      {selectedWard && (
+        <div className="absolute top-16 right-3 z-20 w-80 bg-slate-900/95 backdrop-blur border-2 border-teal-500/50 text-white p-4 rounded-xl shadow-2xl space-y-3 font-mono">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div className="flex items-center space-x-2">
+              <ShieldAlert className="w-4 h-4 text-teal-400" />
+              <span className="font-bold text-sm text-slate-100">{selectedWard.ward_name}</span>
+            </div>
+            <button 
+              onClick={() => setSelectedWard(null)} 
+              className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Risk Level Badge & Score */}
+          {(() => {
+            const rScore = selectedWard.risk_score || 50;
+            const details = getRiskLevelDetails(rScore);
+            return (
+              <div className={`p-3 rounded-lg border flex items-center justify-between ${details.bg}`}>
+                <div>
+                  <div className="text-[10px] uppercase text-slate-400 font-semibold">Ward Vector Risk Level</div>
+                  <div className={`text-lg font-extrabold ${details.text}`}>{details.level}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-black text-white">{rScore}<span className="text-xs text-slate-400 font-normal">/100</span></div>
+                  <div className="text-[10px] text-slate-400">EpiSat Risk Index</div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Population & Ward Info */}
+          <div className="space-y-1.5 text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+            <div className="flex justify-between">
+              <span className="text-slate-400 flex items-center gap-1"><Users className="w-3 h-3 text-teal-400" /> Population at Risk:</span>
+              <strong className="text-slate-200">{(selectedWard.population || 15000).toLocaleString()}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400 flex items-center gap-1"><MapPin className="w-3 h-3 text-teal-400" /> District:</span>
+              <strong className="text-slate-200 uppercase">{selectedLocation}</strong>
+            </div>
+          </div>
+
+          <div className="text-[10px] text-slate-400 leading-tight">
+            💡 Select any Ward polygon or grid cell on the map to inspect its real-time spatial vector risk level.
+          </div>
+        </div>
+      )}
+
       {/* Live Map Info & Grid Detail Overlay */}
-      <div className="absolute top-16 left-3 bg-slate-900/90 backdrop-blur border border-teal-500/30 text-white px-3 py-2 rounded-lg font-mono text-xs shadow-lg space-y-1">
+      <div className="absolute top-16 left-3 bg-slate-900/90 backdrop-blur border border-teal-500/30 text-white px-3 py-2 rounded-lg font-mono text-xs shadow-lg space-y-1 z-10">
         <div className="flex items-center space-x-2">
           <Radio className="w-3.5 h-3.5 text-teal-400 animate-pulse" />
           <span>Target District: <strong className="text-teal-400 uppercase">{selectedLocation}</strong></span>
@@ -398,7 +508,7 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
       </div>
 
       {/* Bottom Live Data Stream Ticker */}
-      <div className="absolute bottom-3 right-3 bg-slate-900/95 backdrop-blur border border-teal-500/40 text-white px-3.5 py-2 rounded-lg font-mono text-xs shadow-xl max-w-sm">
+      <div className="absolute bottom-3 right-3 bg-slate-900/95 backdrop-blur border border-teal-500/40 text-white px-3.5 py-2 rounded-lg font-mono text-xs shadow-xl max-w-sm z-10">
         <div className="flex items-center justify-between border-b border-slate-800 pb-1 mb-1.5 text-[11px]">
           <span className="text-teal-400 font-semibold uppercase flex items-center gap-1">
             <Activity className="w-3.5 h-3.5 text-teal-400 animate-spin" /> Live Processing Feeds
@@ -414,7 +524,7 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
       </div>
 
       {/* Map Risk Color Palette Legend */}
-      <div className="absolute bottom-3 left-3 bg-slate-900/90 backdrop-blur p-2.5 rounded-lg font-mono text-[11px] shadow-lg border border-slate-800 text-slate-200">
+      <div className="absolute bottom-3 left-3 bg-slate-900/90 backdrop-blur p-2.5 rounded-lg font-mono text-[11px] shadow-lg border border-slate-800 text-slate-200 z-10">
         <div className="font-semibold text-slate-300 mb-1 uppercase text-[10px]">
           Active Signal: <span className="text-teal-400 font-bold">{activeLayer.toUpperCase()}</span>
         </div>
