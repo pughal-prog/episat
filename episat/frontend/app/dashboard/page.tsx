@@ -17,6 +17,7 @@ export default function DashboardPage() {
     floodMode 
   } = useEpiSatStore();
 
+  const [customCoords, setCustomCoords] = useState<[number, number] | null>(null);
   const [gridData, setGridData] = useState<any[]>([]);
   const [wardsData, setWardsData] = useState<any[]>([]);
   const [hotspotsData, setHotspotsData] = useState<any[]>([]);
@@ -27,14 +28,18 @@ export default function DashboardPage() {
   const fetchData = async (showLoading = false, customLat?: number, customLon?: number) => {
     if (showLoading) setLoading(true);
     try {
+      const activeLat = customLat !== undefined ? customLat : (customCoords ? customCoords[0] : undefined);
+      const activeLon = customLon !== undefined ? customLon : (customCoords ? customCoords[1] : undefined);
+
       let riskUrl = `/api/v1/risk?location_name=${encodeURIComponent(selectedLocation)}&horizon_days=${horizonDays}&flood_mode=${floodMode}`;
       let wardsUrl = `/api/v1/wards?location_name=${encodeURIComponent(selectedLocation)}`;
       let hotspotUrl = `/api/v1/hotspots?location_name=${encodeURIComponent(selectedLocation)}&horizon_days=${horizonDays}`;
       let citizenUrl = `/api/v1/citizen-reports?location_name=${encodeURIComponent(selectedLocation)}`;
 
-      if (customLat !== undefined && customLon !== undefined) {
-        riskUrl += `&lat=${customLat}&lon=${customLon}`;
-        wardsUrl += `&lat=${customLat}&lon=${customLon}`;
+      if (activeLat !== undefined && activeLon !== undefined) {
+        riskUrl += `&lat=${activeLat}&lon=${activeLon}`;
+        wardsUrl += `&lat=${activeLat}&lon=${activeLon}`;
+        hotspotUrl += `&lat=${activeLat}&lon=${activeLon}`;
       }
 
       const [riskRes, hotspotRes, wardsRes, citizenRes] = await Promise.all([
@@ -77,14 +82,19 @@ export default function DashboardPage() {
 
   // Initial fetch + 15-second real-time auto-polling for NRT satellite telemetry update
   useEffect(() => {
+    setCustomCoords(null);
     fetchData(true);
+  }, [selectedLocation, horizonDays, floodMode]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       fetchData(false);
     }, 15000);
     return () => clearInterval(interval);
-  }, [selectedLocation, horizonDays, floodMode]);
+  }, [selectedLocation, horizonDays, floodMode, customCoords]);
 
   const handleRecenterGrid = (lat: number, lon: number) => {
+    setCustomCoords([lat, lon]);
     fetchData(false, lat, lon);
   };
 

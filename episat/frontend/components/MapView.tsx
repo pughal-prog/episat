@@ -150,6 +150,15 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
         setIsMoved(true);
       });
 
+      map.on("click", (e: any) => {
+        // If user clicks on empty map space (not selecting an existing popup feature)
+        const features = map.queryRenderedFeatures(e.point, { layers: ["ward-fill", "grid-fill"] });
+        if ((!features || features.length === 0) && onRecenterGrid) {
+          onRecenterGrid(e.lngLat.lat, e.lngLat.lng);
+          setIsMoved(false);
+        }
+      });
+
       map.on("load", () => {
         setupWardsAndGridLayers(map, gridData, wardsData, activeLayer, setSelectedCell, setSelectedWard, maplibregl);
         updateHotspotMarkers(map, maplibregl, hotspotsData);
@@ -331,7 +340,16 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
     const wardFeatures = wData.map((ward) => ({
       type: "Feature",
       properties: ward,
-      geometry: ward.geometry_geojson
+      geometry: ward.geometry_geojson || {
+        type: "Polygon",
+        coordinates: [[
+          [ward.center_lon - 0.006, ward.center_lat - 0.006],
+          [ward.center_lon + 0.006, ward.center_lat - 0.006],
+          [ward.center_lon + 0.006, ward.center_lat + 0.006],
+          [ward.center_lon - 0.006, ward.center_lat + 0.006],
+          [ward.center_lon - 0.006, ward.center_lat - 0.006]
+        ]]
+      }
     }));
     if (map.getSource("ward-source")) {
       map.getSource("ward-source").setData({ type: "FeatureCollection", features: wardFeatures });
@@ -340,7 +358,16 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
     const gridFeatures = gData.map((cell) => ({
       type: "Feature",
       properties: cell,
-      geometry: cell.geometry_geojson
+      geometry: cell.geometry_geojson || {
+        type: "Polygon",
+        coordinates: [[
+          [cell.center_lon - 0.002, cell.center_lat - 0.002],
+          [cell.center_lon + 0.002, cell.center_lat - 0.002],
+          [cell.center_lon + 0.002, cell.center_lat + 0.002],
+          [cell.center_lon - 0.002, cell.center_lat + 0.002],
+          [cell.center_lon - 0.002, cell.center_lat - 0.002]
+        ]]
+      }
     }));
 
     if (map.getSource("grid-source")) {

@@ -62,6 +62,7 @@ async def get_risk_snapshot(
             "ward_name": geom_info.get("ward_name", "Ward 42"),
             "center_lat": geom_info["center_lat"],
             "center_lon": geom_info["center_lon"],
+            "geometry_geojson": geom_info.get("geometry_geojson"),
             "episat_risk_score": fused["episat_risk_score"],
             "risk_level": fused["risk_level"],
             "bsi_score": bsi_res["bsi_score"],
