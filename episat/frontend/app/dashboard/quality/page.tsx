@@ -9,9 +9,12 @@ export default function DataQualityPage() {
 
   useEffect(() => {
     fetch("http://127.0.0.1:5000/api/v1/data-quality")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok || !res.headers.get("content-type")?.includes("application/json")) return null;
+        return res.json().catch(() => null);
+      })
       .then((json) => {
-        if (json.success) setData(json.data);
+        if (json && json.success) setData(json.data);
         setLoading(false);
       })
       .catch(() => setLoading(false));

@@ -9,13 +9,16 @@ router = APIRouter(tags=["hotspots"])
 detector = HyperlocalHotspotDetector()
 demo_provider = DemoDataProvider()
 
+from app.core.all_india_lgd_locations import get_district_by_id_or_name
+
 @router.get("/hotspots", response_model=APIResponse)
 async def get_hotspots(
     location_name: str = Query("Chennai"),
     horizon_days: int = Query(21)
 ):
-    coords = {"Chennai": (13.0827, 80.2707), "Delhi": (28.6139, 77.2090)}.get(location_name, (13.0827, 80.2707))
-    cells = demo_provider.fetch_grid_cells(location_name, coords[0], coords[1])
+    dist = get_district_by_id_or_name(location_name)
+    lat, lon = (dist["lat"], dist["lon"]) if dist else (13.0827, 80.2707)
+    cells = demo_provider.fetch_grid_cells(location_name, lat, lon)
     
     # Enrich cells with risk scores
     for i, c in enumerate(cells):

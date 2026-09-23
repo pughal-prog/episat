@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
@@ -10,14 +10,12 @@ class UserCreate(BaseModel):
     role: Optional[str] = "health_officer"
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     email: str
     full_name: str
     role: str
     is_active: bool
-
-    class Config:
-        from_attributes = True
 
 class Token(BaseModel):
     access_token: str
@@ -169,8 +167,13 @@ class AssistantQueryRequest(BaseModel):
     question: str
     location_name: Optional[str] = "Chennai"
     ward_name: Optional[str] = None
+    persona: Optional[str] = "citizen" # "citizen", "health_officer", "analyst", "admin"
+    disease: Optional[str] = "dengue"
 
 class AssistantQueryResponse(BaseModel):
     answer: str
     sources_used: List[str]
     context_data: Dict[str, Any]
+    action_trigger: Optional[str] = None # e.g. "OPEN_CITIZEN_REPORT_MODAL", "OPEN_SIMULATOR_MODAL"
+    timestamp: str = ""
+

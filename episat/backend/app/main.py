@@ -6,7 +6,7 @@ from app.api.v1.endpoints import (
     auth, locations, risk, forecast, hotspots,
     explainability, interventions, simulation,
     citizen_reports, assistant, reports, health,
-    flood, models_registry, data_quality
+    flood, models_registry, data_quality, spread
 )
 from app.db.database import engine, Base
 
@@ -27,6 +27,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -48,6 +49,7 @@ app.include_router(health.router, prefix=settings.API_V1_STR)
 app.include_router(flood.router, prefix=settings.API_V1_STR)
 app.include_router(models_registry.router, prefix=settings.API_V1_STR)
 app.include_router(data_quality.router, prefix=settings.API_V1_STR)
+app.include_router(spread.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 async def root():

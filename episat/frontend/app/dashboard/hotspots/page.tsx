@@ -11,9 +11,12 @@ export default function HotspotsPage() {
   useEffect(() => {
     setLoading(true);
     fetch(`http://127.0.0.1:5000/api/v1/hotspots?location_name=Chennai&horizon_days=${horizon}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok || !res.headers.get("content-type")?.includes("application/json")) return null;
+        return res.json().catch(() => null);
+      })
       .then((json) => {
-        if (json.success) setHotspots(json.data);
+        if (json && json.success) setHotspots(json.data);
         setLoading(false);
       })
       .catch(() => setLoading(false));

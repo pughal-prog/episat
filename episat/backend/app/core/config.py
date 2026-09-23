@@ -31,12 +31,22 @@ class Settings(BaseSettings):
     WEATHER_API_KEY: Optional[str] = None
     GEE_PROJECT_ID: Optional[str] = None
 
+    # GEE Service Account & NASA Earthdata Credentials
+    GEE_SERVICE_ACCOUNT_EMAIL: Optional[str] = None
+    GEE_SERVICE_ACCOUNT_KEY_PATH: Optional[str] = None
+    GEE_GCP_PROJECT_ID: Optional[str] = None
+    NASA_EARTHDATA_USERNAME: Optional[str] = None
+    NASA_EARTHDATA_PASSWORD: Optional[str] = None
+
+    # Redis Cache & Broker
+    REDIS_URL: str = "redis://localhost:6379/0"
+
     # Paths
     BASE_DIR: Path = BASE_DIR
     DATA_DIR: Path = DATA_DIR
     MODEL_STORAGE_PATH: Path = MODEL_STORAGE_PATH
 
-    model_config = SettingsConfigDict(case_sensitive=True, extra="ignore")
+    model_config = SettingsConfigDict(env_file=(".env", "../.env"), case_sensitive=True, extra="ignore")
 
 settings = Settings()
 

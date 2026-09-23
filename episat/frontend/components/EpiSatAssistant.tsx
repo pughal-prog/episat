@@ -31,11 +31,15 @@ export default function EpiSatAssistant() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: userMsg, location_name: selectedLocation })
       });
-      const json = await res.json();
-      if (json.success) {
-        setMessages(prev => [...prev, { sender: "bot", text: json.data.answer, sources: json.data.sources_used }]);
+      if (res.ok && res.headers.get("content-type")?.includes("application/json")) {
+        const json = await res.json().catch(() => null);
+        if (json?.success) {
+          setMessages(prev => [...prev, { sender: "bot", text: json.data.answer, sources: json.data.sources_used }]);
+        } else {
+          setMessages(prev => [...prev, { sender: "bot", text: "The required data is not available." }]);
+        }
       } else {
-        setMessages(prev => [...prev, { sender: "bot", text: "The required data is not available." }]);
+        setMessages(prev => [...prev, { sender: "bot", text: "Unable to connect to EpiSat intelligence backend." }]);
       }
     } catch {
       setMessages(prev => [...prev, { sender: "bot", text: "Unable to connect to EpiSat intelligence backend." }]);

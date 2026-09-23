@@ -3,6 +3,8 @@ import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
 
+from app.core.all_india_lgd_locations import get_district_by_id_or_name
+
 DISTRICT_PROFILES = {
     "Chennai": {"base_temp": 29.4, "base_rain": 24.5, "base_pop": 26900, "lat": 13.0827, "lon": 80.2707},
     "Delhi":   {"base_temp": 27.2, "base_rain": 18.0, "base_pop": 11300, "lat": 28.6139, "lon": 77.2090},
@@ -16,13 +18,17 @@ def generate_grid_timeseries(location_name: str = "Chennai", n_weeks: int = 156)
     encoding realistic mosquito breeding lags and seasonal curves.
     """
     rng = np.random.default_rng(hash(location_name) % (2**32))
-    profile = DISTRICT_PROFILES.get(location_name, DISTRICT_PROFILES["Chennai"])
+    profile = DISTRICT_PROFILES.get(location_name)
+    if not profile:
+        dist_info = get_district_by_id_or_name(location_name)
+        lat, lon = (dist_info["lat"], dist_info["lon"]) if dist_info else (13.0827, 80.2707)
+        profile = {"base_temp": 27.0, "base_rain": 20.0, "base_pop": 15000, "lat": lat, "lon": lon}
 
     end_date = pd.Timestamp.now().normalize()
     dates = pd.date_range(end=end_date, periods=n_weeks, freq="W-MON")
 
-    # Generate 10 grid cells per city for granular simulation
-    cells = [f"CELL_{location_name.upper()}_{i+1:03d}" for i in range(10)]
+    # Generate 25 grid cells per district location matching 5x5 geospatial grid
+    cells = [f"CELL_{location_name.upper()}_{i+1:03d}" for i in range(25)]
     rows = []
 
     for cell_id in cells:

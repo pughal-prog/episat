@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import MapView from "@/components/MapView";
 import HotspotPanel from "@/components/HotspotPanel";
-import EpiSatAssistant from "@/components/EpiSatAssistant";
+import { SpreadMetricCard } from "@/components/SpreadMetricCard";
 import WhatIfSimulatorModal from "@/components/WhatIfSimulatorModal";
 import CitizenReportModal from "@/components/CitizenReportModal";
 import { useEpiSatStore } from "@/lib/store";
@@ -18,6 +18,7 @@ export default function DashboardPage() {
   } = useEpiSatStore();
 
   const [gridData, setGridData] = useState<any[]>([]);
+  const [wardsData, setWardsData] = useState<any[]>([]);
   const [hotspotsData, setHotspotsData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,15 +26,29 @@ export default function DashboardPage() {
     async function fetchData() {
       setLoading(true);
       try {
-        const [riskRes, hotspotRes] = await Promise.all([
+        const [riskRes, hotspotRes, wardsRes] = await Promise.all([
           fetch(`/api/v1/risk?location_name=${selectedLocation}&horizon_days=${horizonDays}&flood_mode=${floodMode}`),
-          fetch(`/api/v1/hotspots?location_name=${selectedLocation}&horizon_days=${horizonDays}`)
+          fetch(`/api/v1/hotspots?location_name=${selectedLocation}&horizon_days=${horizonDays}`),
+          fetch(`/api/v1/wards?location_name=${selectedLocation}`)
         ]);
-        const riskJson = await riskRes.json();
-        const hotspotJson = await hotspotRes.json();
 
-        if (riskJson.success) setGridData(riskJson.data);
-        if (hotspotJson.success) setHotspotsData(hotspotJson.data);
+        let riskJson = null;
+        let hotspotJson = null;
+        let wardsJson = null;
+
+        if (riskRes.ok && riskRes.headers.get("content-type")?.includes("application/json")) {
+          riskJson = await riskRes.json().catch(() => null);
+        }
+        if (hotspotRes.ok && hotspotRes.headers.get("content-type")?.includes("application/json")) {
+          hotspotJson = await hotspotRes.json().catch(() => null);
+        }
+        if (wardsRes.ok && wardsRes.headers.get("content-type")?.includes("application/json")) {
+          wardsJson = await wardsRes.json().catch(() => null);
+        }
+
+        if (riskJson?.success) setGridData(riskJson.data);
+        if (hotspotJson?.success) setHotspotsData(hotspotJson.data);
+        if (wardsJson?.success) setWardsData(wardsJson.data);
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
       } finally {
@@ -124,12 +139,13 @@ export default function DashboardPage() {
                 Loading 500m Geospatial Grid for {selectedLocation}…
               </div>
             ) : (
-              <MapView gridData={gridData} hotspotsData={hotspotsData} citizenReportsData={[]} />
+              <MapView gridData={gridData} wardsData={wardsData} hotspotsData={hotspotsData} citizenReportsData={[]} />
             )}
           </div>
 
-          {/* Hotspot & Ward Detailed Inspector (1 col) */}
-          <div className="lg:col-span-1">
+          {/* Hotspot & Ward Detailed Inspector + Spread Metric Card (1 col) */}
+          <div className="lg:col-span-1 space-y-4">
+            <SpreadMetricCard />
             <HotspotPanel />
           </div>
 
@@ -138,7 +154,6 @@ export default function DashboardPage() {
       </main>
 
       {/* Global Modals & Drawers */}
-      <EpiSatAssistant />
       <WhatIfSimulatorModal />
       <CitizenReportModal />
 

@@ -33,9 +33,12 @@ export default function SimulationPage() {
         bsi_reduction_pct: bsiReduction
       })
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok || !res.headers.get("content-type")?.includes("application/json")) return null;
+        return res.json().catch(() => null);
+      })
       .then((json) => {
-        if (json.success) setSimResult(json.data);
+        if (json && json.success) setSimResult(json.data);
         setLoading(false);
       })
       .catch(() => setLoading(false));

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Floating3DAIAssistant } from "@/components/Floating3DAIAssistant";
 
 export const metadata: Metadata = {
   title: "EpiSat 2.0 — Space-to-Action AI Platform for Disease Early Warning",
@@ -18,9 +19,11 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet" />
       </head>
-      <body className="min-h-screen flex flex-col justify-between antialiased bg-paper text-ink">
+      <body className="min-h-screen flex flex-col justify-between antialiased bg-paper text-ink relative">
         {children}
+        <Floating3DAIAssistant />
       </body>
     </html>
   );
 }
+

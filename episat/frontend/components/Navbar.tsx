@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEpiSatStore } from "@/lib/store";
@@ -11,10 +12,88 @@ import { DiseaseSelector } from "./DiseaseSelector";
 export default function Navbar() {
   const pathname = usePathname();
   const { 
+    selectedState, setSelectedState,
     selectedLocation, setSelectedLocation, 
     floodMode, setFloodMode,
     toggleAssistant, toggleSimulator, toggleCitizenModal 
   } = useEpiSatStore();
+
+  const [statesList, setStatesList] = useState<any[]>([]);
+  const [districtsList, setDistrictsList] = useState<any[]>([]);
+  const [envSummary, setEnvSummary] = useState<string>("Environmental data: updated 2.5h ago");
+  const [diseaseSummary, setDiseaseSummary] = useState<string>("Disease surveillance: updated 4 days ago");
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(true);
+
+  // Fetch all 36 States/UTs from API
+  useEffect(() => {
+    async function loadStates() {
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+        const res = await fetch(`${baseUrl}/locations/states`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            setStatesList(json.data);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load states:", err);
+      }
+    }
+    loadStates();
+  }, []);
+
+  // Fetch districts when selectedState changes
+  useEffect(() => {
+    async function loadDistricts() {
+      if (!selectedState) return;
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+        const res = await fetch(`${baseUrl}/locations/districts?state_id=${selectedState}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data && json.data.length > 0) {
+            setDistrictsList(json.data);
+            // Check if selectedLocation is in the newly loaded district list
+            const exists = json.data.some((d: any) => d.district_name === selectedLocation);
+            if (!exists) {
+              setSelectedLocation(json.data[0].district_name);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load districts:", err);
+      }
+    }
+    loadDistricts();
+  }, [selectedState]);
+
+  const fetchFreshnessStatus = async () => {
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+      const res = await fetch(`${baseUrl}/data-quality/staleness-check`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          if (json.data.environmental_summary) setEnvSummary(json.data.environmental_summary);
+          if (json.data.disease_summary) setDiseaseSummary(json.data.disease_summary);
+          setIsRefreshing(Boolean(json.data.refresh_in_progress || json.data.refresh_triggered));
+          setIsDemoMode(Boolean(json.data.is_demo_mode));
+        }
+      }
+    } catch (err) {
+      // Fallback silently if backend offline
+    }
+  };
+
+  useEffect(() => {
+    fetchFreshnessStatus();
+    const interval = setInterval(() => {
+      fetchFreshnessStatus();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const navLinks = [
     { href: "/dashboard", label: "Command Center", icon: Map },
@@ -43,30 +122,65 @@ export default function Navbar() {
             </p>
           </Link>
 
-          {/* Location Selector */}
-          <select
-            value={selectedLocation}
-            onChange={(e) => setSelectedLocation(e.target.value)}
-            className="bg-paper border border-ink/30 text-ink font-mono text-xs px-3 py-1.5 rounded focus:outline-none focus:border-teal-brand"
-          >
-            <option value="Chennai">Chennai (Tamil Nadu)</option>
-            <option value="Delhi">Delhi (NCR)</option>
-            <option value="Kochi">Kochi (Kerala)</option>
-            <option value="Pune">Pune (Maharashtra)</option>
-            <option value="Kolkata">Kolkata (West Bengal)</option>
-            <option value="Mumbai">Mumbai (Maharashtra)</option>
-            <option value="Bengaluru">Bengaluru (Karnataka)</option>
-            <option value="Hyderabad">Hyderabad (Telangana)</option>
-            <option value="Bhubaneswar">Bhubaneswar (Odisha)</option>
-          </select>
+          {/* Dynamic State Selector (36 States/UTs) */}
+          <div className="flex items-center space-x-1.5">
+            <select
+              value={selectedState}
+              onChange={(e) => setSelectedState(e.target.value)}
+              className="bg-paper border border-ink/30 text-ink font-mono text-xs px-2.5 py-1.5 rounded focus:outline-none focus:border-teal-brand font-semibold"
+              title="Select State / UT"
+            >
+              {statesList.length > 0 ? (
+                statesList.map((s) => (
+                  <option key={s.state_id} value={s.state_id}>
+                    {s.state_name} ({s.state_id})
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="TN">Tamil Nadu (TN)</option>
+                  <option value="MH">Maharashtra (MH)</option>
+                  <option value="DL">Delhi (DL)</option>
+                  <option value="KA">Karnataka (KA)</option>
+                  <option value="TS">Telangana (TS)</option>
+                  <option value="RJ">Rajasthan (RJ)</option>
+                  <option value="WB">West Bengal (WB)</option>
+                  <option value="KL">Kerala (KL)</option>
+                  <option value="UP">Uttar Pradesh (UP)</option>
+                </>
+              )}
+            </select>
+
+            {/* Dynamic District Selector */}
+            <select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              className="bg-paper border border-ink/30 text-ink font-mono text-xs px-2.5 py-1.5 rounded focus:outline-none focus:border-teal-brand font-bold text-teal-brand"
+              title="Select District"
+            >
+              {districtsList.length > 0 ? (
+                districtsList.map((d) => (
+                  <option key={d.district_id || d.district_name} value={d.district_name}>
+                    {d.district_name}
+                  </option>
+                ))
+              ) : (
+                <option value={selectedLocation}>{selectedLocation}</option>
+              )}
+            </select>
+          </div>
 
           {/* Pluggable Multi-Disease Selector */}
           <DiseaseSelector />
 
-          <DataFreshnessBadge sourceName="MODIS_LST" timestamp={new Date().toISOString()} ageHours={3.5} />
+          <DataFreshnessBadge 
+            envSummary={envSummary}
+            diseaseSummary={diseaseSummary}
+            isRefreshing={isRefreshing}
+            isDemoMode={isDemoMode}
+          />
           <DataFreshnessLegend />
         </div>
-
 
         {/* Navigation Tabs */}
         <nav className="flex items-center space-x-1 font-mono text-xs">

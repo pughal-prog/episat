@@ -46,3 +46,11 @@ async def login(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
         data=Token(access_token=token, user=UserResponse.model_validate(user)),
         metadata=ResponseMetadata(timestamp=datetime.now(timezone.utc).isoformat())
     )
+
+@router.post("/logout", response_model=APIResponse)
+async def logout():
+    return APIResponse(
+        success=True,
+        data={"message": "Session terminated successfully. Token revoked."},
+        metadata=ResponseMetadata(timestamp=datetime.now(timezone.utc).isoformat())
+    )

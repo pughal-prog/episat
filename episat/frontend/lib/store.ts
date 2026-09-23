@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 interface EpiSatState {
+  selectedState: string;
   selectedLocation: string;
   selectedDisease: string; // "dengue", "malaria", "chikungunya", etc.
   horizonDays: number;
@@ -11,6 +12,7 @@ interface EpiSatState {
   isSimulatorOpen: boolean;
   isCitizenModalOpen: boolean;
   
+  setSelectedState: (state: string) => void;
   setSelectedLocation: (loc: string) => void;
   setSelectedDisease: (disease: string) => void;
   setHorizonDays: (days: number) => void;
@@ -23,6 +25,7 @@ interface EpiSatState {
 }
 
 export const useEpiSatStore = create<EpiSatState>((set) => ({
+  selectedState: "TN",
   selectedLocation: "Chennai",
   selectedDisease: "dengue",
   horizonDays: 21,
@@ -33,6 +36,7 @@ export const useEpiSatStore = create<EpiSatState>((set) => ({
   isSimulatorOpen: false,
   isCitizenModalOpen: false,
 
+  setSelectedState: (selectedState) => set({ selectedState }),
   setSelectedLocation: (selectedLocation) => set({ selectedLocation }),
   setSelectedDisease: (selectedDisease) => set({ selectedDisease }),
   setHorizonDays: (horizonDays) => set({ horizonDays }),

@@ -16,6 +16,8 @@ forecast_engine = DiseaseForecastEngine()
 fusion_engine = RiskFusionEngine()
 demo_provider = DemoDataProvider()
 
+from app.core.all_india_lgd_locations import get_district_by_id_or_name
+
 @router.get("/risk", response_model=APIResponse)
 async def get_risk_snapshot(
     location_name: str = Query("Chennai"),
@@ -26,14 +28,15 @@ async def get_risk_snapshot(
     df_feat = build_feature_store_df(df_raw)
     
     latest_per_cell = df_feat.groupby("cell_id").tail(1).to_dict("records")
-    coords = {"Chennai": (13.0827, 80.2707), "Delhi": (28.6139, 77.2090)}.get(location_name, (13.0827, 80.2707))
-    grid_cells = demo_provider.fetch_grid_cells(location_name, coords[0], coords[1])
+    dist = get_district_by_id_or_name(location_name)
+    lat, lon = (dist["lat"], dist["lon"]) if dist else (13.0827, 80.2707)
+    grid_cells = demo_provider.fetch_grid_cells(location_name, lat, lon)
     cell_map = {c["id"]: c for c in grid_cells}
 
     results = []
     for row in latest_per_cell:
         c_id = row["cell_id"]
-        geom_info = cell_map.get(c_id, {"center_lat": coords[0], "center_lon": coords[1], "ward_name": "Ward 42"})
+        geom_info = cell_map.get(c_id, {"center_lat": lat, "center_lon": lon, "ward_name": "Ward 42"})
 
         anomaly_res = anomaly_engine.calculate_score(row)
         bsi_res = bsi_model.calculate_bsi(row)
