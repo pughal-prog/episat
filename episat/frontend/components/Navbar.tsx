@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEpiSatStore } from "@/lib/store";
-import { ShieldAlert, Map, BarChart3, HelpCircle, Sliders, Camera, AlertTriangle } from "lucide-react";
+import { ShieldAlert, Map, BarChart3, HelpCircle, Sliders, Camera, AlertTriangle, Search, MapPin, X } from "lucide-react";
 import { DataFreshnessBadge } from "./DataFreshnessBadge";
 import { DataFreshnessLegend } from "./DataFreshnessLegend";
 import { DiseaseSelector } from "./DiseaseSelector";
@@ -20,28 +20,42 @@ export default function Navbar() {
 
   const [statesList, setStatesList] = useState<any[]>([]);
   const [districtsList, setDistrictsList] = useState<any[]>([]);
+  const [allLocations, setAllLocations] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
+  const [filteredResults, setFilteredResults] = useState<any[]>([]);
+  
   const [envSummary, setEnvSummary] = useState<string>("Environmental data: updated 2.5h ago");
   const [diseaseSummary, setDiseaseSummary] = useState<string>("Disease surveillance: updated 4 days ago");
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(true);
 
-  // Fetch all 36 States/UTs from API
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Load All-India Locations Registry (All States & 780+ Districts)
   useEffect(() => {
-    async function loadStates() {
+    async function loadAllLocations() {
       try {
         const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
-        const res = await fetch(`${baseUrl}/locations/states`);
-        if (res.ok) {
-          const json = await res.json();
-          if (json.success && json.data) {
-            setStatesList(json.data);
-          }
+        const [statesRes, locRes] = await Promise.all([
+          fetch(`${baseUrl}/locations/states`),
+          fetch(`${baseUrl}/locations`)
+        ]);
+
+        if (statesRes.ok) {
+          const sJson = await statesRes.json();
+          if (sJson.success && sJson.data) setStatesList(sJson.data);
+        }
+
+        if (locRes.ok) {
+          const lJson = await locRes.json();
+          if (lJson.success && lJson.data) setAllLocations(lJson.data);
         }
       } catch (err) {
-        console.error("Failed to load states:", err);
+        console.error("Failed to load locations registry:", err);
       }
     }
-    loadStates();
+    loadAllLocations();
   }, []);
 
   // Fetch districts when selectedState changes
@@ -55,8 +69,8 @@ export default function Navbar() {
           const json = await res.json();
           if (json.success && json.data && json.data.length > 0) {
             setDistrictsList(json.data);
-            // Check if selectedLocation is in the newly loaded district list
-            const exists = json.data.some((d: any) => d.district_name === selectedLocation);
+            // Verify if selectedLocation is in the newly loaded district list
+            const exists = json.data.some((d: any) => d.district_name.toLowerCase() === selectedLocation.toLowerCase());
             if (!exists) {
               setSelectedLocation(json.data[0].district_name);
             }
@@ -68,6 +82,44 @@ export default function Navbar() {
     }
     loadDistricts();
   }, [selectedState]);
+
+  // Handle Search Input Changes & Auto-Complete Filtering
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const q = e.target.value;
+    setSearchQuery(q);
+    if (q.trim().length > 0) {
+      const queryLower = q.toLowerCase();
+      const matches = allLocations.filter(loc => 
+        loc.name.toLowerCase().includes(queryLower) || 
+        (loc.state && loc.state.toLowerCase().includes(queryLower))
+      ).slice(0, 8);
+      setFilteredResults(matches);
+      setShowSearchResults(true);
+    } else {
+      setShowSearchResults(false);
+    }
+  };
+
+  // Select Location from Auto-Complete Dropdown
+  const handleSelectSearchResult = (locationObj: any) => {
+    if (locationObj.state) {
+      setSelectedState(locationObj.state);
+    }
+    setSelectedLocation(locationObj.name);
+    setSearchQuery("");
+    setShowSearchResults(false);
+  };
+
+  // Close search dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const fetchFreshnessStatus = async () => {
     try {
@@ -89,9 +141,7 @@ export default function Navbar() {
 
   useEffect(() => {
     fetchFreshnessStatus();
-    const interval = setInterval(() => {
-      fetchFreshnessStatus();
-    }, 5000);
+    const interval = setInterval(fetchFreshnessStatus, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -111,8 +161,8 @@ export default function Navbar() {
     <header className="border-b-2 border-ink bg-paper-raised px-6 py-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
         
-        {/* Brand */}
-        <div className="flex items-center space-x-3">
+        {/* Brand & All-India Location Controls */}
+        <div className="flex flex-wrap items-center space-x-3">
           <Link href="/" className="group">
             <h1 className="font-serif text-2xl font-bold tracking-tight text-ink group-hover:text-teal-brand transition-colors">
               EpiSat <span className="font-mono text-xs font-semibold px-2 py-0.5 bg-teal-brand text-paper rounded">2.0</span>
@@ -121,6 +171,52 @@ export default function Navbar() {
               From Earth Observation to Early Intervention
             </p>
           </Link>
+
+          {/* Location Search Bar with Auto-Complete */}
+          <div ref={searchContainerRef} className="relative">
+            <div className="relative flex items-center">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 text-ink/50 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={handleSearchChange}
+                onFocus={() => searchQuery.trim().length > 0 && setShowSearchResults(true)}
+                placeholder="Search any district/city..."
+                className="bg-paper border border-ink/30 text-ink font-mono text-xs pl-8 pr-7 py-1.5 rounded focus:outline-none focus:border-teal-brand font-semibold w-48 shadow-inner"
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery("")} 
+                  className="absolute right-2 text-ink/50 hover:text-ink"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            {/* Auto-Complete Suggestions Dropdown */}
+            {showSearchResults && filteredResults.length > 0 && (
+              <div className="absolute top-full left-0 mt-1 w-64 bg-slate-900 border-2 border-teal-500/50 rounded-lg shadow-2xl z-50 overflow-hidden font-mono text-xs text-white max-h-60 overflow-y-auto">
+                <div className="p-1.5 bg-slate-950 text-[10px] text-slate-400 font-semibold border-b border-slate-800">
+                  ALL-INDIA DISTRICT SEARCH RESULTS ({filteredResults.length})
+                </div>
+                {filteredResults.map((loc) => (
+                  <button
+                    key={loc.id || loc.name}
+                    onClick={() => handleSelectSearchResult(loc)}
+                    className="w-full text-left px-3 py-2 hover:bg-teal-500/20 hover:text-teal-300 flex items-center justify-between border-b border-slate-800/50 transition-colors"
+                  >
+                    <span className="font-bold flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-teal-400" /> {loc.name}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+                      {loc.state || "IN"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Dynamic State Selector (36 States/UTs) */}
           <div className="flex items-center space-x-1.5">

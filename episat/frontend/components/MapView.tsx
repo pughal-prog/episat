@@ -21,8 +21,26 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
   const [mapStyleMode, setMapStyleMode] = useState<"satellite" | "streets">("satellite");
   const [liveStreamTime, setLiveStreamTime] = useState<string>("");
   const [selectedWard, setSelectedWard] = useState<any | null>(null);
+  const [locationsDb, setLocationsDb] = useState<any[]>([]);
   
   const { selectedLocation, activeLayer, setSelectedCell } = useEpiSatStore();
+
+  // Load All-India District Coordinates Database
+  useEffect(() => {
+    async function fetchLocationsDb() {
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+        const res = await fetch(`${baseUrl}/locations`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) setLocationsDb(json.data);
+        }
+      } catch (err) {
+        console.error("Map locations DB load error:", err);
+      }
+    }
+    fetchLocationsDb();
+  }, []);
 
   // Helper to determine risk level badge and color scheme
   function getRiskLevelDetails(score: number) {
@@ -43,15 +61,21 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
     return () => clearInterval(interval);
   }, []);
 
-  // Helper to compute map center dynamically from gridData or wardsData
+  // Helper to compute map center dynamically from gridData, locationsDb, or wardsData
   function getDynamicCenter(): [number, number] {
     if (gridData && gridData.length > 0) {
       const validLats = gridData.map(c => c.center_lat).filter(Boolean);
       const validLons = gridData.map(c => c.center_lon).filter(Boolean);
       if (validLats.length > 0 && validLons.length > 0) {
         const avgLat = validLats.reduce((a, b) => a + b, 0) / validLats.length;
-        const avgLon = validLons.reduce((a, b) => a + b, 0) / validLons.length;
+        const avgLon = validLons.reduce((a, b) => a + b, 0) / validLats.length;
         return [avgLon, avgLat];
+      }
+    }
+    if (locationsDb && locationsDb.length > 0) {
+      const match = locationsDb.find(l => l.name.toLowerCase() === selectedLocation.toLowerCase());
+      if (match && match.lat && match.lon) {
+        return [match.lon, match.lat];
       }
     }
     const coords: Record<string, [number, number]> = {
@@ -125,7 +149,7 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
         updateCitizenReportMarkers(map, maplibregl, citizenReportsData);
       });
     });
-  }, [selectedLocation, gridData, wardsData, activeLayer, hotspotsData, mapStyleMode]);
+  }, [selectedLocation, gridData, wardsData, activeLayer, hotspotsData, mapStyleMode, locationsDb]);
 
   function getLayerColorProperty(layer: string) {
     switch (layer) {
@@ -170,7 +194,6 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
         data: { type: "FeatureCollection", features: wardFeatures },
       });
 
-      // Ward Polygon Fill - Color-coded by Ward Risk Score
       map.addLayer({
         id: "ward-fill",
         type: "fill",
@@ -188,7 +211,6 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
         },
       });
 
-      // High-contrast Ward Boundaries
       map.addLayer({
         id: "ward-line",
         type: "line",
@@ -200,7 +222,6 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
         },
       });
 
-      // Interactive Ward Click Listener
       map.on("click", "ward-fill", (e: any) => {
         if (e.features && e.features[0]) {
           const wardProps = e.features[0].properties;
@@ -288,7 +309,6 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
           const props = e.features[0].properties;
           setCell(props);
 
-          // Find corresponding ward and set selectedWard
           const matchingWard = wData.find(w => w.ward_name === props.ward_name);
           if (matchingWard) {
             setWard(matchingWard);
