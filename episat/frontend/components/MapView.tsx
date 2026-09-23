@@ -2,16 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useEpiSatStore } from "@/lib/store";
-import { Activity, Radio, Satellite, ShieldAlert, Sparkles, RefreshCw, Eye, MapPin, X, ChevronRight, AlertTriangle, Users } from "lucide-react";
+import { Activity, Radio, Satellite, ShieldAlert, Sparkles, RefreshCw, Eye, MapPin, X, ChevronRight, AlertTriangle, Users, Crosshair } from "lucide-react";
 
 interface MapViewProps {
   gridData: any[];
   wardsData?: any[];
   hotspotsData: any[];
   citizenReportsData: any[];
+  onRecenterGrid?: (lat: number, lon: number) => void;
 }
 
-export default function MapView({ gridData, wardsData = [], hotspotsData, citizenReportsData }: MapViewProps) {
+export default function MapView({ gridData, wardsData = [], hotspotsData, citizenReportsData, onRecenterGrid }: MapViewProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -22,6 +23,7 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
   const [liveStreamTime, setLiveStreamTime] = useState<string>("");
   const [selectedWard, setSelectedWard] = useState<any | null>(null);
   const [locationsDb, setLocationsDb] = useState<any[]>([]);
+  const [isMoved, setIsMoved] = useState<boolean>(false);
   
   const { selectedLocation, activeLayer, setSelectedCell } = useEpiSatStore();
 
@@ -104,6 +106,7 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
         updateMapLayers(mapRef.current, gridData, wardsData, activeLayer, setSelectedCell);
         updateHotspotMarkers(mapRef.current, maplibregl, hotspotsData);
         updateCitizenReportMarkers(mapRef.current, maplibregl, citizenReportsData);
+        setIsMoved(false);
         return;
       }
 
@@ -141,6 +144,10 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
 
       map.on("zoom", () => {
         setCurrentZoom(map.getZoom());
+      });
+
+      map.on("dragend", () => {
+        setIsMoved(true);
       });
 
       map.on("load", () => {
@@ -411,6 +418,14 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
     });
   }
 
+  const handleRecenterClick = () => {
+    if (mapRef.current && onRecenterGrid) {
+      const c = mapRef.current.getCenter();
+      onRecenterGrid(c.lat, c.lng);
+      setIsMoved(false);
+    }
+  };
+
   return (
     <div className="relative w-full h-full min-h-[500px] border-2 border-teal-brand/40 rounded-lg overflow-hidden shadow-2xl bg-slate-950">
       
@@ -433,6 +448,17 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
           <span className="text-slate-400">|</span>
           <span className="text-slate-300 text-[11px]">{liveStreamTime}</span>
         </div>
+
+        {/* Dynamic Grid Re-Centering Control */}
+        {isMoved && (
+          <button
+            onClick={handleRecenterClick}
+            className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold px-3 py-1 rounded-full text-xs shadow-lg flex items-center space-x-1.5 font-mono transition-transform hover:scale-105 animate-pulse"
+          >
+            <Crosshair className="w-3.5 h-3.5" />
+            <span>Recalculate Area Risk Here</span>
+          </button>
+        )}
 
         {/* Map Tile Style Switcher (Satellite vs Streets GIS) */}
         <div className="bg-slate-900/90 backdrop-blur border border-slate-700 p-1 rounded-full flex items-center space-x-1 shadow-lg font-mono text-[11px]">
@@ -518,7 +544,7 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
       <div className="absolute top-16 left-3 bg-slate-900/90 backdrop-blur border border-teal-500/30 text-white px-3 py-2 rounded-lg font-mono text-xs shadow-lg space-y-1 z-10">
         <div className="flex items-center space-x-2">
           <Radio className="w-3.5 h-3.5 text-teal-400 animate-pulse" />
-          <span>Target District: <strong className="text-teal-400 uppercase">{selectedLocation}</strong></span>
+          <span>Target Area: <strong className="text-teal-400 uppercase">{selectedLocation}</strong></span>
         </div>
         <div className="text-[11px] text-slate-400 flex items-center space-x-3">
           <span>Zoom: <strong className="text-slate-200">{currentZoom.toFixed(1)}</strong></span>

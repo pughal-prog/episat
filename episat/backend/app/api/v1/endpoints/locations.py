@@ -43,14 +43,21 @@ async def get_districts(
         metadata=ResponseMetadata(timestamp=datetime.now(timezone.utc).isoformat())
     )
 
+from typing import Optional
+
 @router.get("/grid", response_model=APIResponse)
 async def get_grid_cells(
     location_name: str = Query("Chennai"),
-    resolution: int = Query(500)
+    resolution: int = Query(500),
+    lat: Optional[float] = Query(None),
+    lon: Optional[float] = Query(None)
 ):
     dist = get_district_by_id_or_name(location_name)
-    lat, lon = (dist["lat"], dist["lon"]) if dist else (13.0827, 80.2707)
-    cells = demo_provider.fetch_grid_cells(location_name, lat, lon, resolution)
+    dist_lat, dist_lon = (dist["lat"], dist["lon"]) if dist else (13.0827, 80.2707)
+    target_lat = lat if lat is not None else dist_lat
+    target_lon = lon if lon is not None else dist_lon
+
+    cells = demo_provider.fetch_grid_cells(location_name, target_lat, target_lon, resolution)
     return APIResponse(
         success=True,
         data=cells,
@@ -59,12 +66,17 @@ async def get_grid_cells(
 
 @router.get("/wards", response_model=APIResponse)
 async def get_ward_boundaries(
-    location_name: str = Query("Chennai")
+    location_name: str = Query("Chennai"),
+    lat: Optional[float] = Query(None),
+    lon: Optional[float] = Query(None)
 ):
     """Returns distinct GeoJSON polygon boundaries for administrative wards in the selected district."""
     dist = get_district_by_id_or_name(location_name)
-    lat, lon = (dist["lat"], dist["lon"]) if dist else (13.0827, 80.2707)
-    wards = demo_provider.fetch_ward_boundaries(location_name, lat, lon)
+    dist_lat, dist_lon = (dist["lat"], dist["lon"]) if dist else (13.0827, 80.2707)
+    target_lat = lat if lat is not None else dist_lat
+    target_lon = lon if lon is not None else dist_lon
+
+    wards = demo_provider.fetch_ward_boundaries(location_name, target_lat, target_lon)
     return APIResponse(
         success=True,
         data=wards,

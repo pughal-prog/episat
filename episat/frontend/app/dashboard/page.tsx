@@ -24,14 +24,24 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState<string>("");
 
-  const fetchData = async (showLoading = false) => {
+  const fetchData = async (showLoading = false, customLat?: number, customLon?: number) => {
     if (showLoading) setLoading(true);
     try {
+      let riskUrl = `/api/v1/risk?location_name=${encodeURIComponent(selectedLocation)}&horizon_days=${horizonDays}&flood_mode=${floodMode}`;
+      let wardsUrl = `/api/v1/wards?location_name=${encodeURIComponent(selectedLocation)}`;
+      let hotspotUrl = `/api/v1/hotspots?location_name=${encodeURIComponent(selectedLocation)}&horizon_days=${horizonDays}`;
+      let citizenUrl = `/api/v1/citizen-reports?location_name=${encodeURIComponent(selectedLocation)}`;
+
+      if (customLat !== undefined && customLon !== undefined) {
+        riskUrl += `&lat=${customLat}&lon=${customLon}`;
+        wardsUrl += `&lat=${customLat}&lon=${customLon}`;
+      }
+
       const [riskRes, hotspotRes, wardsRes, citizenRes] = await Promise.all([
-        fetch(`/api/v1/risk?location_name=${selectedLocation}&horizon_days=${horizonDays}&flood_mode=${floodMode}`),
-        fetch(`/api/v1/hotspots?location_name=${selectedLocation}&horizon_days=${horizonDays}`),
-        fetch(`/api/v1/wards?location_name=${selectedLocation}`),
-        fetch(`/api/v1/citizen-reports?location_name=${selectedLocation}`)
+        fetch(riskUrl),
+        fetch(hotspotUrl),
+        fetch(wardsUrl),
+        fetch(citizenUrl)
       ]);
 
       let riskJson = null;
@@ -73,6 +83,10 @@ export default function DashboardPage() {
     }, 15000);
     return () => clearInterval(interval);
   }, [selectedLocation, horizonDays, floodMode]);
+
+  const handleRecenterGrid = (lat: number, lon: number) => {
+    fetchData(false, lat, lon);
+  };
 
   return (
     <div className="min-h-screen bg-paper flex flex-col justify-between">
@@ -168,7 +182,13 @@ export default function DashboardPage() {
                 <span>Processing Live Real-Time 500m Geospatial Grid for {selectedLocation}…</span>
               </div>
             ) : (
-              <MapView gridData={gridData} wardsData={wardsData} hotspotsData={hotspotsData} citizenReportsData={citizenReports} />
+              <MapView 
+                gridData={gridData} 
+                wardsData={wardsData} 
+                hotspotsData={hotspotsData} 
+                citizenReportsData={citizenReports} 
+                onRecenterGrid={handleRecenterGrid}
+              />
             )}
           </div>
 

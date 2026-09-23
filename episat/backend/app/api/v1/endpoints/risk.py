@@ -18,19 +18,26 @@ demo_provider = DemoDataProvider()
 
 from app.core.all_india_lgd_locations import get_district_by_id_or_name
 
+from typing import Optional
+
 @router.get("/risk", response_model=APIResponse)
 async def get_risk_snapshot(
     location_name: str = Query("Chennai"),
     horizon_days: int = Query(21),
-    flood_mode: bool = Query(False)
+    flood_mode: bool = Query(False),
+    lat: Optional[float] = Query(None),
+    lon: Optional[float] = Query(None)
 ):
     df_raw = generate_grid_timeseries(location_name=location_name, n_weeks=52)
     df_feat = build_feature_store_df(df_raw)
     
     latest_per_cell = df_feat.groupby("cell_id").tail(1).to_dict("records")
     dist = get_district_by_id_or_name(location_name)
-    lat, lon = (dist["lat"], dist["lon"]) if dist else (13.0827, 80.2707)
-    grid_cells = demo_provider.fetch_grid_cells(location_name, lat, lon)
+    dist_lat, dist_lon = (dist["lat"], dist["lon"]) if dist else (13.0827, 80.2707)
+    target_lat = lat if lat is not None else dist_lat
+    target_lon = lon if lon is not None else dist_lon
+
+    grid_cells = demo_provider.fetch_grid_cells(location_name, target_lat, target_lon)
     cell_map = {c["id"]: c for c in grid_cells}
 
     results = []
