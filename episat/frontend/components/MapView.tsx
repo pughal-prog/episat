@@ -264,9 +264,9 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
         type: "Polygon",
         coordinates: [[
           [ward.center_lon - 0.006, ward.center_lat - 0.006],
-          [ward.center_lon + 0.006, ward.center_lat - 0.006],
-          [ward.center_lon + 0.006, ward.center_lat + 0.006],
           [ward.center_lon - 0.006, ward.center_lat + 0.006],
+          [ward.center_lon + 0.006, ward.center_lat + 0.006],
+          [ward.center_lon + 0.006, ward.center_lat - 0.006],
           [ward.center_lon - 0.006, ward.center_lat - 0.006]
         ]]
       }
@@ -345,11 +345,11 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
       geometry: cell.geometry_geojson || {
         type: "Polygon",
         coordinates: [[
-          [cell.center_lon - 0.002, cell.center_lat - 0.002],
-          [cell.center_lon + 0.002, cell.center_lat - 0.002],
-          [cell.center_lon + 0.002, cell.center_lat + 0.002],
-          [cell.center_lon - 0.002, cell.center_lat + 0.002],
-          [cell.center_lon - 0.002, cell.center_lat - 0.002]
+          [cell.center_lon - 0.00225, cell.center_lat - 0.00225],
+          [cell.center_lon - 0.00225, cell.center_lat + 0.00225],
+          [cell.center_lon + 0.00225, cell.center_lat + 0.00225],
+          [cell.center_lon + 0.00225, cell.center_lat - 0.00225],
+          [cell.center_lon - 0.00225, cell.center_lat - 0.00225]
         ]]
       }
     }));
@@ -412,9 +412,9 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
         type: "Polygon",
         coordinates: [[
           [ward.center_lon - 0.006, ward.center_lat - 0.006],
-          [ward.center_lon + 0.006, ward.center_lat - 0.006],
-          [ward.center_lon + 0.006, ward.center_lat + 0.006],
           [ward.center_lon - 0.006, ward.center_lat + 0.006],
+          [ward.center_lon + 0.006, ward.center_lat + 0.006],
+          [ward.center_lon + 0.006, ward.center_lat - 0.006],
           [ward.center_lon - 0.006, ward.center_lat - 0.006]
         ]]
       }
@@ -429,11 +429,11 @@ export default function MapView({ gridData, wardsData = [], hotspotsData, citize
       geometry: cell.geometry_geojson || {
         type: "Polygon",
         coordinates: [[
-          [cell.center_lon - 0.002, cell.center_lat - 0.002],
-          [cell.center_lon + 0.002, cell.center_lat - 0.002],
-          [cell.center_lon + 0.002, cell.center_lat + 0.002],
-          [cell.center_lon - 0.002, cell.center_lat + 0.002],
-          [cell.center_lon - 0.002, cell.center_lat - 0.002]
+          [cell.center_lon - 0.00225, cell.center_lat - 0.00225],
+          [cell.center_lon - 0.00225, cell.center_lat + 0.00225],
+          [cell.center_lon + 0.00225, cell.center_lat + 0.00225],
+          [cell.center_lon + 0.00225, cell.center_lat - 0.00225],
+          [cell.center_lon - 0.00225, cell.center_lat - 0.00225]
         ]]
       }
     }));

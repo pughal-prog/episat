@@ -146,9 +146,9 @@ class DemoDataProvider(SatelliteProvider, WeatherProvider, GISProvider, DiseaseD
                     "type": "Polygon",
                     "coordinates": [[
                         [min_lon, min_lat],
-                        [max_lon, min_lat],
-                        [max_lon, max_lat],
                         [min_lon, max_lat],
+                        [max_lon, max_lat],
+                        [max_lon, min_lat],
                         [min_lon, min_lat]
                     ]]
                 }
@@ -191,9 +191,9 @@ class DemoDataProvider(SatelliteProvider, WeatherProvider, GISProvider, DiseaseD
                 "type": "Polygon",
                 "coordinates": [[
                     [min_lon, min_lat],
-                    [max_lon, min_lat],
-                    [max_lon, max_lat],
                     [min_lon, max_lat],
+                    [max_lon, max_lat],
+                    [max_lon, min_lat],
                     [min_lon, min_lat]
                 ]]
             }
